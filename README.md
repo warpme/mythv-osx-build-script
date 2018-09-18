@@ -85,5 +85,17 @@ Try find missing source archives maually and put them into ~/Devel/.osx-packager
 It is important that given source archive is archive of subdir named exactly as archive name.
 Example: fftw3f-3.3.4.tar.bz2 should be archive of <fftw3f-3.3.4> dir containing fftw sources.
 
+
+Q: Build process complains about missing QuickTime framework at linking time
+
+A: Download https://github.com/phracker/MacOSX-SDKs/releases/tag/MacOSX10.11.sdk
+Solution1:
+1.Place the "MacOSX10.11.sdk" folder in /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs
+2.Set Base SDK to "OS X 10.11" for the again target in the Xcode project settings
+
+Solution2:
+Symlink MacOSX10.11.sdk FrameworksQuickTime.framework to MacOSX SDK used by Xcode:
+sudo ln -sf /Users/piotro/Devel/MacOSX10.11.sdk/System/Library/Frameworks/QuickTime.framework /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/System/Library/FrameworksQuickTime.framework
+
 Happy compiling!
 
