@@ -628,7 +628,7 @@ if ( $SDKVER =~ m/^10\.[3-5]/ )
 }
 
 # For Xcode 5.1
-my $ECFLAGS = ""; #-Wunused-command-line-argument-hard-error-in-future";
+my $ECFLAGS = "-Wno-aligned-allocation-unavailable"; #-Wunused-command-line-argument-hard-error-in-future";
 
 $ENV{'CFLAGS'} = $ENV{'CXXFLAGS'} = $ENV{'ECXXFLAGS'} = $ENV{'CPPFLAGS'} = "${OLEVEL}${SDKISYSROOT}${SDK105FLAGS} -mmacosx-version-min=$OSTARGET -I$PREFIX/include -I$PREFIX/mysql $ECFLAGS";
 $ENV{'LDFLAGS'} = "$SDKLSYSROOT -mmacosx-version-min=$OSTARGET -L$PREFIX/lib -F$QTLIB";
