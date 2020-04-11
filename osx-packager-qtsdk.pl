@@ -481,7 +481,6 @@ else
 {
     @pluginConf = (
         '--enable-opengl',
-        '--enable-mythgallery',
         '--enable-exif',
         '--enable-new-exif',
         '--enable-mythzoneminder',
@@ -627,8 +626,8 @@ if ( $SDKVER =~ m/^10\.[3-5]/ )
     $SDK105FLAGS = " -D_USING_105SDK=1";
 }
 
-# For Xcode 5.1
-my $ECFLAGS = "-Wno-aligned-allocation-unavailable"; #-Wunused-command-line-argument-hard-error-in-future";
+my $ECFLAGS = "-Wno-aligned-allocation-unavailable";
+# my $ECFLAGS = "";
 
 $ENV{'CFLAGS'} = $ENV{'CXXFLAGS'} = $ENV{'ECXXFLAGS'} = $ENV{'CPPFLAGS'} = "${OLEVEL}${SDKISYSROOT}${SDK105FLAGS} -mmacosx-version-min=$OSTARGET -I$PREFIX/include -I$PREFIX/mysql $ECFLAGS";
 $ENV{'LDFLAGS'} = "$SDKLSYSROOT -mmacosx-version-min=$OSTARGET -L$PREFIX/lib -F$QTLIB";
@@ -847,7 +846,7 @@ our %depend = (
     'qt'
     =>
     {
-        'url' => "http://download.qt.io/official_releases/qt/5.11/5.11.1/single/qt-everywhere-src-5.11.1.tar.xz",
+        'url' => "http://download.qt.io/official_releases/qt/5.14/5.14.2/single/qt-everywhere-src-5.14.2.tar.xz",
         'pre-conf'
         =>  "cd qtbase/src/plugins/sqldrivers/mysql; " .
             "sed -i '' 's/QMAKE_USE/# QMAKE_USE/g' mysql.pro; " .
@@ -863,7 +862,7 @@ our %depend = (
         'make-cmd' => 'cd qtbase/src/plugins/sqldrivers/mysql',
         'make' => [ ],
         'post-make' => 'cd qtbase/src/plugins/sqldrivers/mysql ; make install ; '.
-            'make -f Makefile.Release install ; '.
+            'make -f Makefile install ; '.
             '',
         'parallel-make' => 'yes'
     },
