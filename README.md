@@ -1,5 +1,7 @@
 # mythv-osx-build-script
 
+[Quick Start](https://github.com/warpme/minimyth2/wiki/Deploying-MiniMyth2#overview)
+
 Script allows to build current mythtv-master (tested on  pre-30, r769 gc580bc2) on vanilla (only Xcode required) macOS (10.13.6 tested).
 
 It is based on excellent work of:
