@@ -669,7 +669,7 @@ push @ARCHS, $arch;
 
 # Test if Qt libraries support required architectures. We do so by generating a dummy project and trying to compile it
 &Verbose("Testing Qt environment");
-my $dir = tempdir( CLEANUP => 0 );
+my $dir = tempdir( CLEANUP => 1 );
 my $tmpe = "$dir/test";
 my $tmpcpp = "$dir/test.cpp";
 my $tmppro = "$dir/test.pro";
@@ -682,7 +682,6 @@ my $name = basename($tmpe);
 print fdpro "SOURCES=$tmpcpp\nTARGET=$name\nDESTDIR=$dir\nCONFIG-=app_bundle";
 close fdpro;
 my $cmd = "$QTBIN/qmake \"QMAKE_CC=$CCBIN\" \"QMAKE_CXX=$CXXBIN\" \"QMAKE_CXXFLAGS=$ENV{'ECXXFLAGS'}\" \"QMAKE_CFLAGS=$ENV{'CFLAGS'}\" \"QMAKE_LFLAGS+='$ENV{'LDFLAGS'}'\" -o $make $tmppro";
-#my $cmd = "$QTBIN/qmake \"QMAKE_CXXFLAGS=$ENV{'ECXXFLAGS'}\" \"QMAKE_CFLAGS=$ENV{'CFLAGS'}\" \"QMAKE_LFLAGS+='$ENV{'LDFLAGS'}'\" -o $make $tmppro";
 $cmd .= " 2> /dev/null > /dev/null" if ( ! $OPT{'verbose'} );
 &Syscall($cmd);
 &Syscall(['/bin/rm' , '-f', $tmpe]);
