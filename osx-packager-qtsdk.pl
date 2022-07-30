@@ -52,6 +52,7 @@ our $sourceforge = 'http://downloads.sourceforge.net';
 
 # At the moment, there is mythtv plus...
 our @components = ( 'mythplugins' );
+#our @components = ('');
 
 # The OS X programs that we are likely to be interested in.
 our @targets   = ( 'MythFrontend',  'MythWelcome' );
@@ -83,22 +84,22 @@ our %build_profile = (
         'ncurses',
         'mysqlclient',
         #'dbus',
-        'qt',
+        'qtsqldriver',
+        #'qtwebkit',
         'yasm',
         'liberation-sans',
-        'firewiresdk',
         'libtool',
         'autoconf',
         'automake',
         'taglib',
         'exiv2',
+        'ninja',
+        'soundtouch',
         'libsamplerate',
         'libxml2',
         'libbluray',
         'lzo',
-        'minizip',
-        'fftw3',
-        'fftw3f',
+        'libzip',
         'openssl',
         'python-mysql',
         'python-lxml',
@@ -106,6 +107,19 @@ our %build_profile = (
         'python-urlgrabber',
         'python-simplejson',
         'python-oauth',
+        #'python-requests',
+        #'python-certifi',
+        #'python-urllib3',
+        #'python-idna',
+        #'python-chardet',
+        #'python-pyOpenSSL',
+        #'python-six',
+        #'python-pyasn1',
+        #'python-enum34',
+        #'python-ipaddress',
+        #'python-ordereddict',
+        #'python-pycparser',
+        #'python-cffi',
        ],
     'mythplugins'
     => [
@@ -485,7 +499,8 @@ else
         '--enable-new-exif',
         '--enable-mythzoneminder',
         '--enable-mythmusic',
-        '--enable-fftw',
+        '--enable-mythbrowser',
+        '--enable-mythnews',
     );
 }
 
@@ -501,6 +516,7 @@ our %conf = (
         '--enable-libmp3lame',
         '--disable-lirc',
         '--disable-distcc',
+        '--disable-firewire',
         "--python=/usr/bin/$PYTHON",
       ],
 );
@@ -529,7 +545,7 @@ delete $ENV{'CXX'};
 &Syscall("ln -sf /usr/lib/libcrypto.35.dylib $PREFIX/lib/libcrypto.dylib") or die;
 
 our $DEVROOT = `xcode-select -print-path`; chomp $DEVROOT;
-our $SDKNAME = `xcodebuild -showsdks | grep macosx10 | sort | head -n 1 | awk '{ print \$NF }' `; chomp $SDKNAME;
+our $SDKNAME = `xcodebuild -showsdks | grep macosx11 | sort | head -n 1 | awk '{ print \$NF }' `; chomp $SDKNAME;
 our $SDKVER = $SDKNAME; $SDKVER =~ s/macosx//g;
 our $SDKROOT = "$DEVROOT/SDKs/MacOSX$SDKVER.sdk";
 
@@ -626,10 +642,9 @@ if ( $SDKVER =~ m/^10\.[3-5]/ )
     $SDK105FLAGS = " -D_USING_105SDK=1";
 }
 
-my $ECFLAGS = "-Wno-aligned-allocation-unavailable";
-# my $ECFLAGS = "";
+my $ECFLAGS = "";
 
-$ENV{'CFLAGS'} = $ENV{'CXXFLAGS'} = $ENV{'ECXXFLAGS'} = $ENV{'CPPFLAGS'} = "${OLEVEL}${SDKISYSROOT}${SDK105FLAGS} -mmacosx-version-min=$OSTARGET -I$PREFIX/include -I$PREFIX/mysql $ECFLAGS";
+$ENV{'CFLAGS'} = $ENV{'CXXFLAGS'} = $ENV{'ECXXFLAGS'} = $ENV{'CPPFLAGS'} = "${OLEVEL}${SDKISYSROOT}${SDK105FLAGS} -mmacosx-version-min=$OSTARGET -I$PREFIX/include -I$PREFIX/mysql ";
 $ENV{'LDFLAGS'} = "$SDKLSYSROOT -mmacosx-version-min=$OSTARGET -L$PREFIX/lib -F$QTLIB";
 $ENV{'PREFIX'} = $PREFIX;
 $ENV{'SDKROOT'} = $SDKROOT;
@@ -654,7 +669,7 @@ push @ARCHS, $arch;
 
 # Test if Qt libraries support required architectures. We do so by generating a dummy project and trying to compile it
 &Verbose("Testing Qt environment");
-my $dir = tempdir( CLEANUP => 1 );
+my $dir = tempdir( CLEANUP => 0 );
 my $tmpe = "$dir/test";
 my $tmpcpp = "$dir/test.cpp";
 my $tmppro = "$dir/test.pro";
@@ -667,6 +682,7 @@ my $name = basename($tmpe);
 print fdpro "SOURCES=$tmpcpp\nTARGET=$name\nDESTDIR=$dir\nCONFIG-=app_bundle";
 close fdpro;
 my $cmd = "$QTBIN/qmake \"QMAKE_CC=$CCBIN\" \"QMAKE_CXX=$CXXBIN\" \"QMAKE_CXXFLAGS=$ENV{'ECXXFLAGS'}\" \"QMAKE_CFLAGS=$ENV{'CFLAGS'}\" \"QMAKE_LFLAGS+='$ENV{'LDFLAGS'}'\" -o $make $tmppro";
+#my $cmd = "$QTBIN/qmake \"QMAKE_CXXFLAGS=$ENV{'ECXXFLAGS'}\" \"QMAKE_CFLAGS=$ENV{'CFLAGS'}\" \"QMAKE_LFLAGS+='$ENV{'LDFLAGS'}'\" -o $make $tmppro";
 $cmd .= " 2> /dev/null > /dev/null" if ( ! $OPT{'verbose'} );
 &Syscall($cmd);
 &Syscall(['/bin/rm' , '-f', $tmpe]);
@@ -740,11 +756,12 @@ our %depend = (
 
     'taglib' =>
     {
-        'url'           => 'http://taglib.github.io/releases/taglib-1.9.1.tar.gz',
+        'url'           => 'http://taglib.github.io/releases/taglib-1.11.1.tar.gz',
         'conf-cmd'      => "$PREFIX/bin/cmake",
         'conf'          => [
             "-DCMAKE_INSTALL_PREFIX=$PREFIX",
             "-DCMAKE_RELEASE_TYPE=Release",
+            "-DBUILD_SHARED_LIBS=ON",
             "."
         ],
     },
@@ -843,10 +860,10 @@ our %depend = (
         'chmod 755 pkg-config'
     },
 
-    'qt'
+    'qtsqldriver'
     =>
     {
-        'url' => "http://download.qt.io/official_releases/qt/5.14/5.14.2/single/qt-everywhere-src-5.14.2.tar.xz",
+        'url' => "http://download.qt.io/official_releases/qt/5.15/5.15.2/single/qt-everywhere-src-5.15.2.tar.xz",
         'pre-conf'
         =>  "cd qtbase/src/plugins/sqldrivers/mysql; " .
             "sed -i '' 's/QMAKE_USE/# QMAKE_USE/g' mysql.pro; " .
@@ -865,6 +882,40 @@ our %depend = (
             'make -f Makefile install ; '.
             '',
         'parallel-make' => 'yes'
+    },
+
+    'qtwebkit'
+    =>
+    {
+        'url' => "https://github.com/qt/qtwebkit/archive/10cd6a106e1c461c774ca166a67b8c835c755ef7.zip",
+        'conf-cmd'      => "cd qtwebkit-10cd6a106e1c461c774ca166a67b8c835c755ef7 ; $PREFIX/bin/cmake",
+        'conf'          => [
+            "-DCMAKE_INSTALL_PREFIX=$PREFIX",
+            "-DCMAKE_VERBOSE_MAKEFILE=OFF",
+            "-DCMAKE_BUILD_TYPE=Release",
+            "-DPORT=Qt",
+            "-DENABLE_TOOLS=OFF",
+            "-DUSE_LIBHYPHEN=OFF",
+            "-DCMAKE_CXX_FLAGS_RELEASE=\"-fPIC -fno-lto\"",
+            "-DENABLE_PRINT_SUPPORT=OFF",
+            "-DENABLE_API_TESTS=OFF",
+            "-DENABLE_DEVICE_ORIENTATION=OFF",
+            "-DENABLE_DRAG_SUPPORT=OFF",
+            "-DENABLE_GAMEPAD_DEPRECATED=OFF",
+            "-DENABLE_GEOLOCATION=OFF",
+            "-DENABLE_INSPECTOR_UI=OFF",
+            "-DENABLE_JIT=OFF",
+            "-DENABLE_NETSCAPE_PLUGIN_API=OFF",
+            "-DENABLE_PRINT_SUPPORT=OFF",
+            "-DENABLE_QT_GESTURE_EVENTS=OFF",
+            "-DENABLE_SPELLCHECK=OFF",
+            "-DENABLE_TOUCH_EVENTS=OFF",
+            "-DQt5_DIR=/Users/piotro/Devel/Qt5.14.2SDK/5.14.2/clang_64/lib/cmake/Qt5",
+        ],
+        'make'          => [
+            'all',
+        ],
+        'parallel-make' => 'yes',
     },
 
     'exif' =>
@@ -913,12 +964,21 @@ our %depend = (
 
     'cmake'       =>
     {
-        'url'           => 'https://cmake.org/files/v3.4/cmake-3.4.3.tar.gz',
+        'url'           => 'https://cmake.org/files/v3.18/cmake-3.18.2.tar.gz',
         'parallel-make' => 'yes',
         'conf-cmd'      => "./configure",
         'conf'          =>  [
             "--prefix=$PREFIX",
         ],
+    },
+
+    'ninja' =>
+    {
+        'url'           =>  'https://github.com/martine/ninja/archive/v1.11.0.zip',
+        'conf-cmd'      =>  "cd",
+        'make-cmd'      =>  "cd ./ninja-1.11.0; $PYTHON ./configure.py --bootstrap",
+        'make'          =>  [ ],
+        'post-make'     =>  "cd ./ninja-1.11.0; cp -f ninja $PREFIX/bin/",
     },
 
     'libtool'     =>
@@ -1028,6 +1088,20 @@ EOF
         'post-make'     => "cd contrib/minizip; make install",
     },
 
+    'soundtouch' =>
+    {
+        'url'           => "https://codeberg.org/soundtouch/soundtouch/archive/2.3.1.tar.gz",
+        'conf-cmd'      => "$PREFIX/bin/cmake",
+        'conf'          => [
+            "-S soundtouch -B build -G Ninja",
+            "-DCMAKE_INSTALL_PREFIX=$PREFIX",
+            "-DCMAKE_RELEASE_TYPE=Release",
+        ],
+        'make-cmd'          => "mkdir -p build; $PREFIX/bin/cmake -S soundtouch -B build -DCMAKE_INSTALL_PREFIX=$PREFIX -DCMAKE_RELEASE_TYPE=Release -DBUILD_SHARED_LIBS=ON; $PREFIX/bin/cmake --build build",
+        'make'          => [ ],
+        'post-make'     => "$PREFIX/bin/cmake --install build",
+    },
+
     'fftw3' =>
     {
         'url' => "http://www.fftw.org/fftw-3.3.4.tar.gz",
@@ -1043,6 +1117,26 @@ EOF
             "--enable-threads",
             "--enable-single",
         ],
+    },
+
+    'libzip' =>
+    {
+        'url' => "https://libzip.org/download/libzip-1.7.3.tar.xz",
+        'conf-cmd'      => "$PREFIX/bin/cmake",
+        'conf'          => [
+            "-DCMAKE_INSTALL_PREFIX=$PREFIX",
+            "-DCMAKE_RELEASE_TYPE=Release",
+            "."
+        ],
+    },
+
+    'python-setuptools' =>
+    {
+        'url'           => 'https://pypi.python.org/packages/source/s/setuptools/setuptools-20.3.1.tar.gz',
+        'pre-conf'      => "mkdir -p $PREFIX/lib/$PYTHON/site-packages",
+        'conf-cmd'      => "cd",
+        'make-cmd'      => "$PYTHON setup.py install --prefix=$PREFIX",
+        'make'          => [ ],
     },
 
     'python-mysql' =>
@@ -1119,6 +1213,123 @@ EOF
     'python-oauth' =>
     {
         'url'           => 'https://files.pythonhosted.org/packages/e2/10/d7d6ae26ef7686109a10b3e88d345c4ec6686d07850f4ef7baefb7eb61e1/oauth-1.0.1.tar.gz',
+        'pre-conf'      => "mkdir -p $PREFIX/lib/$PYTHON/site-packages",
+        'conf-cmd'      => "cd",
+        'make-cmd'      => "$PYTHON setup.py install --prefix=$PREFIX",
+        'make'          => [ ],
+    },
+
+    'python-requests' =>
+    {
+        'url'           => 'https://github.com/kennethreitz/requests/archive/v2.18.4.tar.gz',
+        'pre-conf'      => "mkdir -p $PREFIX/lib/$PYTHON/site-packages",
+        'conf-cmd'      => "cd",
+        'make-cmd'      => "$PYTHON setup.py install --prefix=$PREFIX",
+        'make'          => [ ],
+    },
+
+    'python-certifi' =>
+    {
+        'url'           => 'https://pypi.python.org/packages/15/d4/2f888fc463d516ff7bf2379a4e9a552fef7f22a94147655d9b1097108248/certifi-2018.1.18.tar.gz',
+        'pre-conf'      => "mkdir -p $PREFIX/lib/$PYTHON/site-packages",
+        'conf-cmd'      => "cd",
+        'make-cmd'      => "$PYTHON setup.py install --prefix=$PREFIX",
+        'make'          => [ ],
+    },
+
+    'python-urllib3' =>
+    {
+        'url'           => 'https://pypi.python.org/packages/ee/11/7c59620aceedcc1ef65e156cc5ce5a24ef87be4107c2b74458464e437a5d/urllib3-1.22.tar.gz',
+        'pre-conf'      => "mkdir -p $PREFIX/lib/$PYTHON/site-packages",
+        'conf-cmd'      => "cd",
+        'make-cmd'      => "$PYTHON setup.py install --prefix=$PREFIX",
+        'make'          => [ ],
+    },
+
+    'python-idna' =>
+    {
+        'url'           => 'https://pypi.python.org/packages/f4/bd/0467d62790828c23c47fc1dfa1b1f052b24efdf5290f071c7a91d0d82fd3/idna-2.6.tar.gz',
+        'pre-conf'      => "mkdir -p $PREFIX/lib/$PYTHON/site-packages",
+        'conf-cmd'      => "cd",
+        'make-cmd'      => "$PYTHON setup.py install --prefix=$PREFIX",
+        'make'          => [ ],
+    },
+
+    'python-chardet' =>
+    {
+        'url'           => 'https://pypi.python.org/packages/fc/bb/a5768c230f9ddb03acc9ef3f0d4a3cf93462473795d18e9535498c8f929d/chardet-3.0.4.tar.gz',
+        'pre-conf'      => "mkdir -p $PREFIX/lib/$PYTHON/site-packages",
+        'conf-cmd'      => "cd",
+        'make-cmd'      => "$PYTHON setup.py install --prefix=$PREFIX",
+        'make'          => [ ],
+    },
+
+    'python-pyOpenSSL' =>
+    {
+        'url'           => 'https://pypi.python.org/packages/source/p/pyOpenSSL/pyOpenSSL-19.1.0.tar.gz',
+        'pre-conf'      => "mkdir -p $PREFIX/lib/$PYTHON/site-packages",
+        'conf-cmd'      => "cd",
+        'make-cmd'      => "$PYTHON setup.py install --prefix=$PREFIX",
+        'make'          => [ ],
+    },
+
+    'python-six' =>
+    {
+        'url'           => 'https://pypi.python.org/packages/source/s/six/six-1.10.0.tar.gz',
+        'pre-conf'      => "mkdir -p $PREFIX/lib/$PYTHON/site-packages",
+        'conf-cmd'      => "cd",
+        'make-cmd'      => "$PYTHON setup.py install --prefix=$PREFIX",
+        'make'          => [ ],
+    },
+
+    'python-pyasn1' =>
+    {
+        'url'           => 'https://pypi.python.org/packages/source/p/pyasn1/pyasn1-0.1.9.tar.gz',
+        'pre-conf'      => "mkdir -p $PREFIX/lib/$PYTHON/site-packages",
+        'conf-cmd'      => "cd",
+        'make-cmd'      => "$PYTHON setup.py install --prefix=$PREFIX",
+        'make'          => [ ],
+    },
+
+    'python-enum34' =>
+    {
+        'url'           => 'https://pypi.python.org/packages/source/e/enum34/enum34-1.1.2.tar.gz',
+        'pre-conf'      => "mkdir -p $PREFIX/lib/$PYTHON/site-packages",
+        'conf-cmd'      => "cd",
+        'make-cmd'      => "$PYTHON setup.py install --prefix=$PREFIX",
+        'make'          => [ ],
+    },
+
+    'python-ipaddress' =>
+    {
+        'url'           => 'https://pypi.python.org/packages/source/i/ipaddress/ipaddress-1.0.16.tar.gz',
+        'pre-conf'      => "mkdir -p $PREFIX/lib/$PYTHON/site-packages",
+        'conf-cmd'      => "cd",
+        'make-cmd'      => "$PYTHON setup.py install --prefix=$PREFIX",
+        'make'          => [ ],
+    },
+
+    'python-ordereddict' =>
+    {
+        'url'           => 'https://pypi.python.org/packages/source/o/ordereddict/ordereddict-1.1.tar.gz',
+        'pre-conf'      => "mkdir -p $PREFIX/lib/$PYTHON/site-packages",
+        'conf-cmd'      => "cd",
+        'make-cmd'      => "$PYTHON setup.py install --prefix=$PREFIX",
+        'make'          => [ ],
+    },
+
+    'python-pycparser' =>
+    {
+        'url'           => 'https://pypi.python.org/packages/source/p/pycparser/pycparser-2.14.tar.gz',
+        'pre-conf'      => "mkdir -p $PREFIX/lib/$PYTHON/site-packages",
+        'conf-cmd'      => "cd",
+        'make-cmd'      => "$PYTHON setup.py install --prefix=$PREFIX",
+        'make'          => [ ],
+    },
+
+    'python-cffi' =>
+    {
+        'url'           => 'https://pypi.python.org/packages/source/c/cffi/cffi-1.11.5.tar.gz',
         'pre-conf'      => "mkdir -p $PREFIX/lib/$PYTHON/site-packages",
         'conf-cmd'      => "cd",
         'make-cmd'      => "$PYTHON setup.py install --prefix=$PREFIX",
@@ -1433,6 +1644,7 @@ foreach my $arch (@ARCHS)
                 {
                     push @config, '--extra-cxxflags=-DIGNORE_SCHEMA_VER_MISMATCH=1 -DIGNORE_PROTO_VER_MISMATCH=1';
                 }
+                push @config, "--disable-ccache";
                 push @config, "--disable-libxml2";
                 push @config, "--pkg-config=$WORKDIR/build/bin/pkg-config";
             }
@@ -1802,7 +2014,7 @@ sub RecursiveCopy($$)
     my ($src, $dst) = @_;
 
     # First copy absolutely everything
-    &Syscall([ '/bin/cp', '-pR', "$src", "$dst"]) or die;
+    &Syscall([ '/bin/cp', '-pR', "$src", "$dst"]);
 
     # Then strip out any .git directories
     my @files = map { chomp $_; $_ } `find $dst -name .git`;
